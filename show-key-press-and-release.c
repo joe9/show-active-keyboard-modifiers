@@ -1,33 +1,29 @@
-/*
- * Copyright © 2009 Red Hat, Inc.
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice (including the next
- * paragraph) shall be included in all copies or substantial portions of the
- * Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
- * DEALINGS IN THE SOFTWARE.
- *
- */
 
+/* copied the below from test_xi2.c of xinput source code
+
+   got the xinput source code from
+     git clone git://anongit.freedesktop.org/xorg/app/xinput
+   to build xinput:
+     cd /home/j/dev/apps/x11/xinput && autoreconf -i && ./configure && make
+
+    got this idea from
+
+    http://stackoverflow.com/questions/16369850/xinput-2-key-code-to-string
+    http://unix.stackexchange.com/questions/129159/record-every-keystroke-and-store-in-a-file
+
+    to print the modifier keysym, check out
+      PrintModifierMapping of exec.c of xmodmap source
+ */
 
 /* #include "xinput.h" */
 #include <X11/Xlib.h>
 #include <X11/extensions/XInput.h>
 #include <X11/extensions/XInput2.h>
 #include <X11/Xutil.h>
+#include <X11/XKBlib.h>
+/* which declares:
+     KeySym XkbKeycodeToKeysym(Display *dpy, KeyCode kc,
+			       unsigned int group, unsigned int level); */
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -42,6 +38,67 @@ int xinput_version(Display* display);
 
 #include <string.h>
 int xi_opcode;
+
+const char *modifiers[] =
+  {"shift","lock","control","mod1","mod2","mod3","mod4","mod5"};
+
+extern struct modtab {
+   const char *name;
+   char *firstKeySymName;
+} modifier_table[];
+
+struct modtab modifier_table[] = {	/* keep in order so it can be index */
+   { "shift", 0   },
+   { "lock", 0    },
+   { "control", 0 },
+   { "mod1", 0    },
+   { "mod2", 0    },
+   { "mod3", 0    },
+   { "mod4", 0    },
+   { "mod5", 0    }};
+
+/*
+ * print the contents of the map
+ */
+void
+PrintModifierMapping(Display *dpy, XModifierKeymap *map, FILE *fp)
+{
+   int i, k = 0;
+   int min_keycode, max_keycode, keysyms_per_keycode = 0;
+
+   XDisplayKeycodes (dpy, &min_keycode, &max_keycode);
+   XGetKeyboardMapping (dpy, min_keycode, (max_keycode - min_keycode + 1),
+			&keysyms_per_keycode);
+
+   fprintf (fp,
+	    "up to %d keys per modifier, (keycodes in parentheses):\n\n",
+	    map->max_keypermod);
+   for (i = 0; i < 8; i++) {
+      int j;
+
+      fprintf(fp, "%-10s", modifier_table[i].name);
+      for (j = 0; j < map->max_keypermod; j++) {
+	 if (map->modifiermap[k]) {
+	    KeySym ks;
+	    int index = 0;
+	    char *nm;
+	    do {
+	       ks = XkbKeycodeToKeysym( dpy, map->modifiermap[k],
+					0, index);
+	       index++;
+	    } while ( !ks && index < keysyms_per_keycode);
+	    nm = XKeysymToString(ks);
+
+	    fprintf (fp, "%s  %s (0x%0x)", (j > 0 ? "," : ""),
+		     (nm ? nm : "BadKey"), map->modifiermap[k]);
+	 }
+	 k++;
+      }
+      fprintf(fp, "\n");
+   }
+   fprintf (fp, "\n");
+   return;
+}
 
 static void print_deviceevent(XIDeviceEvent* event)
 {
@@ -88,50 +145,6 @@ static void print_deviceevent(XIDeviceEvent* event)
 
     printf("    windows: root 0x%lx event 0x%lx child 0x%lx\n",
 	    event->root, event->event, event->child);
-}
-
-void
-test_sync_grab(Display *display, Window win)
-{
-    int loop = 3;
-    int rc;
-    XIEventMask mask;
-
-    /* Select for motion events */
-    mask.deviceid = XIAllDevices;
-    mask.mask_len = 2;
-    mask.mask = calloc(2, sizeof(char));
-    XISetMask(mask.mask, XI_ButtonPress);
-
-    if ((rc = XIGrabDevice(display, 2,  win, CurrentTime, None, GrabModeSync,
-			   GrabModeAsync, False, &mask)) != GrabSuccess)
-    {
-	fprintf(stderr, "Grab failed with %d\n", rc);
-	return;
-    }
-    free(mask.mask);
-
-    XSync(display, True);
-    XIAllowEvents(display, 2, SyncPointer, CurrentTime);
-    XFlush(display);
-
-    printf("Holding sync grab for %d button presses.\n", loop);
-
-    while(loop--)
-    {
-	XIEvent ev;
-
-	XNextEvent(display, (XEvent*)&ev);
-	if (ev.type == GenericEvent && ev.extension == xi_opcode )
-	{
-	    XIDeviceEvent *event = (XIDeviceEvent*)&ev;
-	    print_deviceevent(event);
-	    XIAllowEvents(display, 2, SyncPointer, CurrentTime);
-	}
-    }
-
-    XIUngrabDevice(display, 2, CurrentTime);
-    printf("Done\n");
 }
 
 static const char* type_to_name(int evtype)
@@ -245,6 +258,17 @@ main(int argc, char * argv[])
    int use_root = 0;
    int rc;
    int event, error;
+   XModifierKeymap *map = NULL;
+   unsigned char byte = 1;
+   int i = 0;
+   XIDeviceEvent* cookieData;
+   int min_keycode, max_keycode, keysyms_per_keycode = 0;
+
+   for (i = 0; i < 8; i++) {
+      if ((1 << i) & byte) {
+	 fprintf(stdout, "%-10s is set\n", modifier_table[i].name);
+      }
+   }
 
    display = XOpenDisplay(NULL);
 
@@ -264,6 +288,44 @@ main(int argc, char * argv[])
    }
 
    setvbuf(stdout, NULL, _IOLBF, 0);
+
+   map = XGetModifierMapping (display);
+   XDisplayKeycodes (display, &min_keycode, &max_keycode);
+   XGetKeyboardMapping (display, min_keycode, (max_keycode - min_keycode + 1),
+			&keysyms_per_keycode);
+
+   fprintf(stdout, "modifiers size: %lu\n", sizeof(modifiers));
+   for (i = 0; i < 8; i++) {
+      fprintf(stdout, "modifiers %d : %s\n", i, modifiers[i]);
+   }
+
+   for (i = 0; i < 8; i++) {
+      fprintf(stdout, "%-10s", modifier_table[i].name);
+
+      int j = 0;
+      for (j = 0; j < map->max_keypermod; j++) {
+	 int k = (i * map->max_keypermod) + j;
+	 if (map->modifiermap[k]) {
+	    KeySym ks;
+	    int index = 0;
+	    char *nm;
+	    do {
+	       ks = XkbKeycodeToKeysym( display, map->modifiermap[k],
+					0, index);
+	       index++;
+	    } while ( !ks && index < keysyms_per_keycode);
+	    if (0 == j)
+	       modifier_table[i].firstKeySymName = XKeysymToString(ks);
+	    nm = XKeysymToString(ks);
+	    fprintf (stdout, "%s (0x%0x) ",
+		     (nm ? nm : "Badkey") , map->modifiermap[k]);
+	 }
+      }
+      fprintf(stdout, "\n");
+   }
+   fprintf (stdout, "\n");
+
+   PrintModifierMapping (display, map, stdout);
 
    use_root = 1;
    win = DefaultRootWindow(display);
@@ -302,6 +364,15 @@ main(int argc, char * argv[])
 	    case XI_KeyRelease:
 	    default:
 	       print_deviceevent(cookie->data);
+	       cookieData = cookie->data;
+	       for (i = 0; i < 8; i++) {
+		  if ((1 << i) & cookieData->mods.effective) {
+		     fprintf(stdout, "%-10s is set: %s\n",
+			     modifier_table[i].name,
+			     modifier_table[i].firstKeySymName);
+		  };
+	       }
+
 	       break;
 	 }
       }
