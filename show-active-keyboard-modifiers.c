@@ -4,7 +4,7 @@
    got the xinput source code from
      git clone git://anongit.freedesktop.org/xorg/app/xinput
    to build xinput:
-     cd /home/j/dev/apps/x11/xinput && autoreconf -i && ./configure && make
+    cd /home/j/dev/apps/x11/xinput && autoreconf -i && ./configure && make
 
     got this idea from
 
@@ -13,6 +13,12 @@
 
     to print the modifier keysym, check out
       PrintModifierMapping of exec.c of xmodmap source
+
+    to compile:
+	gcc -o show-active-keyboard-modifiers \
+	`pkg-config --cflags --libs xi` \
+	`pkg-config --cflags --libs x11` show-active-keyboard-modifiers.c
+
  */
 
 /* #include "xinput.h" */
@@ -39,9 +45,6 @@ int xinput_version(Display* display);
 #include <string.h>
 int xi_opcode;
 
-const char *modifiers[] =
-  {"shift","lock","control","mod1","mod2","mod3","mod4","mod5"};
-
 extern struct modtab {
    const char *name;
    char *firstKeySymName;
@@ -57,61 +60,36 @@ struct modtab modifier_table[] = {	/* keep in order so it can be index */
    { "mod4", 0    },
    { "mod5", 0    }};
 
-/*
- * print the contents of the map
- */
-void
-PrintModifierMapping(Display *dpy, XModifierKeymap *map, FILE *fp)
+static void output(int check, char * label, FILE *fp)
 {
-   int i, k = 0;
-   int min_keycode, max_keycode, keysyms_per_keycode = 0;
-
-   XDisplayKeycodes (dpy, &min_keycode, &max_keycode);
-   XGetKeyboardMapping (dpy, min_keycode, (max_keycode - min_keycode + 1),
-			&keysyms_per_keycode);
-
-   fprintf (fp,
-	    "up to %d keys per modifier, (keycodes in parentheses):\n\n",
-	    map->max_keypermod);
-   for (i = 0; i < 8; i++) {
-      int j;
-
-      fprintf(fp, "%-10s", modifier_table[i].name);
-      for (j = 0; j < map->max_keypermod; j++) {
-	 if (map->modifiermap[k]) {
-	    KeySym ks;
-	    int index = 0;
-	    char *nm;
-	    do {
-	       ks = XkbKeycodeToKeysym( dpy, map->modifiermap[k],
-					0, index);
-	       index++;
-	    } while ( !ks && index < keysyms_per_keycode);
-	    nm = XKeysymToString(ks);
-
-	    fprintf (fp, "%s  %s (0x%0x)", (j > 0 ? "," : ""),
-		     (nm ? nm : "BadKey"), map->modifiermap[k]);
+   int first_set_bit = 1;
+   int i = 0;
+   if (0 < check) {
+      fprintf(fp, "%s:[", label);
+      for (i = 0; i < 8; i++) {
+	 if ((1 << i) & check) {
+	    fprintf(fp, "%s%s",
+		    (first_set_bit ? "" : ","),
+		    modifier_table[i].firstKeySymName);
+	    first_set_bit = 0;
 	 }
-	 k++;
       }
-      fprintf(fp, "\n");
+      fprintf(fp, "]");
    }
-   fprintf (fp, "\n");
-   return;
 }
 
 static void print_deviceevent(XIDeviceEvent* event)
 {
-    double *val;
-    int i;
+   double *val;
+   int i;
 
-    printf("    device: %d (%d)\n", event->deviceid, event->sourceid);
-    printf("    detail: %d\n", event->detail);
-    switch(event->evtype) {
-	case XI_KeyPress:
-	case XI_KeyRelease:
-	    printf("    flags: %s\n", (event->flags & XIKeyRepeat) ?  "repeat" : "");
-	    break;
+   printf("    device: %d (%d)\n", event->deviceid, event->sourceid);
+   printf("    detail: %d\n", event->detail);
+   switch(event->evtype) {
+      case XI_KeyPress:
+      case XI_KeyRelease:
+	 printf("    flags: %s\n", (event->flags & XIKeyRepeat) ?  "repeat" : "");
+	 break;
 #if HAVE_XI21
 	case XI_ButtonPress:
 	case XI_ButtonRelease:
@@ -264,12 +242,6 @@ main(int argc, char * argv[])
    XIDeviceEvent* cookieData;
    int min_keycode, max_keycode, keysyms_per_keycode = 0;
 
-   for (i = 0; i < 8; i++) {
-      if ((1 << i) & byte) {
-	 fprintf(stdout, "%-10s is set\n", modifier_table[i].name);
-      }
-   }
-
    display = XOpenDisplay(NULL);
 
    if (display == NULL) {
@@ -287,20 +259,17 @@ main(int argc, char * argv[])
       goto out;
    }
 
+   /* set line buffering to stdout */
    setvbuf(stdout, NULL, _IOLBF, 0);
 
+   /* got this from
+      PrintModifierMapping of exec.c of xmodmap source */
    map = XGetModifierMapping (display);
    XDisplayKeycodes (display, &min_keycode, &max_keycode);
    XGetKeyboardMapping (display, min_keycode, (max_keycode - min_keycode + 1),
 			&keysyms_per_keycode);
-
-   fprintf(stdout, "modifiers size: %lu\n", sizeof(modifiers));
    for (i = 0; i < 8; i++) {
-      fprintf(stdout, "modifiers %d : %s\n", i, modifiers[i]);
-   }
-
-   for (i = 0; i < 8; i++) {
-      fprintf(stdout, "%-10s", modifier_table[i].name);
+/*       fprintf(stdout, "%-10s", modifier_table[i].name); */
 
       int j = 0;
       for (j = 0; j < map->max_keypermod; j++) {
@@ -314,18 +283,17 @@ main(int argc, char * argv[])
 					0, index);
 	       index++;
 	    } while ( !ks && index < keysyms_per_keycode);
-	    if (0 == j)
-	       modifier_table[i].firstKeySymName = XKeysymToString(ks);
 	    nm = XKeysymToString(ks);
-	    fprintf (stdout, "%s (0x%0x) ",
-		     (nm ? nm : "Badkey") , map->modifiermap[k]);
+	    /*	    fprintf (stdout, "%s (0x%0x) ", */
+	    /*		     (nm ? nm : "Badkey") , map->modifiermap[k]); */
+	    if (0 == j && nm) {
+	       modifier_table[i].firstKeySymName = nm;
+	    }
 	 }
       }
-      fprintf(stdout, "\n");
+/*       fprintf(stdout, "\n"); */
    }
-   fprintf (stdout, "\n");
-
-   PrintModifierMapping (display, map, stdout);
+/*    fprintf (stdout, "\n"); */
 
    use_root = 1;
    win = DefaultRootWindow(display);
@@ -343,10 +311,6 @@ main(int argc, char * argv[])
 
    free(mask[0].mask);
 
-   /*
-     test_sync_grab(display, win);
-   */
-
    while(1)
    {
       XEvent ev;
@@ -357,26 +321,21 @@ main(int argc, char * argv[])
 	  cookie->type == GenericEvent &&
 	  cookie->extension == xi_opcode)
       {
-	 printf("EVENT type %d (%s)\n", cookie->evtype, type_to_name(cookie->evtype));
+/*	 printf("EVENT type %d (%s)\n", cookie->evtype, type_to_name(cookie->evtype)); */
 	 switch (cookie->evtype)
 	 {
 	    case XI_KeyPress:
 	    case XI_KeyRelease:
 	    default:
-	       print_deviceevent(cookie->data);
+	       /*	       print_deviceevent(cookie->data); */
 	       cookieData = cookie->data;
-	       for (i = 0; i < 8; i++) {
-		  if ((1 << i) & cookieData->mods.effective) {
-		     fprintf(stdout, "%-10s is set: %s\n",
-			     modifier_table[i].name,
-			     modifier_table[i].firstKeySymName);
-		  };
-	       }
-
+	       output(cookieData->mods.locked, "Locked", stdout);
+	       output(cookieData->mods.latched, " Latched", stdout);
+	       output(cookieData->mods.effective, " Effective", stdout);
+	       fprintf(stdout, "\n");
 	       break;
 	 }
       }
-
       XFreeEventData(display, cookie);
    }
 
