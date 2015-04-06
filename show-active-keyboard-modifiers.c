@@ -12,13 +12,18 @@
     http://unix.stackexchange.com/questions/129159/record-every-keystroke-and-store-in-a-file
 
     to print the modifier keysym, check out
-      PrintModifierMapping of exec.c of xmodmap source
+      PrintModifierMapping of exec.c of xmodmap source from
+      http://cgit.freedesktop.org/xorg/app/xmodmap/
 
     to compile:
 	gcc -o show-active-keyboard-modifiers \
 	`pkg-config --cflags --libs xi` \
 	`pkg-config --cflags --libs x11` show-active-keyboard-modifiers.c
 
+    also checkout XI2 tutorials at:
+      http://who-t.blogspot.com/2009/05/xi2-recipes-part-1.html
+      http://who-t.blogspot.com/2009/07/xi2-recipes-part-4.html
+      http://who-t.blogspot.com/2009/07/xi2-and-xlib-cookies.html
  */
 
 /* #include "xinput.h" */
