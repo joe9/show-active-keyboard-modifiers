@@ -3,6 +3,7 @@ X11 show active keyboard modifiers
 
 copied the below from test_xi2.c of xinput source code
 
+```Shell
    got the xinput source code from
      git clone git://anongit.freedesktop.org/xorg/app/xinput
    to build xinput:
@@ -28,3 +29,5 @@ copied the below from test_xi2.c of xinput source code
       http://who-t.blogspot.com/2009/07/xi2-and-xlib-cookies.html
 
    usage: ./show-active-keyboard-modifiers | sed -e 's/_[LR]//g'
+
+```
