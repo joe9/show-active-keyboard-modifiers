@@ -24,6 +24,9 @@
       http://who-t.blogspot.com/2009/05/xi2-recipes-part-1.html
       http://who-t.blogspot.com/2009/07/xi2-recipes-part-4.html
       http://who-t.blogspot.com/2009/07/xi2-and-xlib-cookies.html
+
+   usage: ./show-active-keyboard-modifiers | sed -e 's/_[LR]//g'
+
  */
 
 /* #include "xinput.h" */
