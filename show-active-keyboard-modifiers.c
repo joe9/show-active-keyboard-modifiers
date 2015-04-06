@@ -78,166 +78,18 @@ static void output(int check, char * label, FILE *fp)
    }
 }
 
-static void print_deviceevent(XIDeviceEvent* event)
-{
-   double *val;
-   int i;
-
-   printf("    device: %d (%d)\n", event->deviceid, event->sourceid);
-   printf("    detail: %d\n", event->detail);
-   switch(event->evtype) {
-      case XI_KeyPress:
-      case XI_KeyRelease:
-	 printf("    flags: %s\n", (event->flags & XIKeyRepeat) ?  "repeat" : "");
-	 break;
-#if HAVE_XI21
-      case XI_ButtonPress:
-      case XI_ButtonRelease:
-      case XI_Motion:
-	 printf("    flags: %s\n", (event->flags & XIPointerEmulated) ?  "emulated" : "");
-	 break;
-#endif
-   }
-
-   printf("    root: %.2f/%.2f\n", event->root_x, event->root_y);
-   printf("    event: %.2f/%.2f\n", event->event_x, event->event_y);
-
-   printf("    buttons:");
-   for (i = 0; i < event->buttons.mask_len * 8; i++)
-      if (XIMaskIsSet(event->buttons.mask, i))
-	 printf(" %d", i);
-   printf("\n");
-
-   printf("    modifiers: locked %#x latched %#x base %#x effective: %#x\n",
-	  event->mods.locked, event->mods.latched,
-	  event->mods.base, event->mods.effective);
-   printf("    group: locked %#x latched %#x base %#x effective: %#x\n",
-	  event->group.locked, event->group.latched,
-	  event->group.base, event->group.effective);
-   printf("    valuators:\n");
-
-   val = event->valuators.values;
-   for (i = 0; i < event->valuators.mask_len * 8; i++)
-      if (XIMaskIsSet(event->valuators.mask, i))
-	 printf("        %i: %.2f\n", i, *val++);
-
-   printf("    windows: root 0x%lx event 0x%lx child 0x%lx\n",
-	  event->root, event->event, event->child);
-}
-
-static const char* type_to_name(int evtype)
-{
-   const char *name;
-
-   switch(evtype) {
-      case XI_DeviceChanged:    name = "DeviceChanged";       break;
-      case XI_KeyPress:         name = "KeyPress";            break;
-      case XI_KeyRelease:       name = "KeyRelease";          break;
-      case XI_ButtonPress:      name = "ButtonPress";         break;
-      case XI_ButtonRelease:    name = "ButtonRelease";       break;
-      case XI_Motion:           name = "Motion";              break;
-      case XI_Enter:            name = "Enter";               break;
-      case XI_Leave:            name = "Leave";               break;
-      case XI_FocusIn:          name = "FocusIn";             break;
-      case XI_FocusOut:         name = "FocusOut";            break;
-      case XI_HierarchyChanged: name = "HierarchyChanged";    break;
-      case XI_PropertyEvent:    name = "PropertyEvent";       break;
-      case XI_RawKeyPress:      name = "RawKeyPress";         break;
-      case XI_RawKeyRelease:    name = "RawKeyRelease";       break;
-      case XI_RawButtonPress:   name = "RawButtonPress";      break;
-      case XI_RawButtonRelease: name = "RawButtonRelease";    break;
-      case XI_RawMotion:        name = "RawMotion";           break;
-      case XI_TouchBegin:       name = "TouchBegin";          break;
-      case XI_TouchUpdate:      name = "TouchUpdate";         break;
-      case XI_TouchEnd:         name = "TouchEnd";            break;
-      case XI_RawTouchBegin:    name = "RawTouchBegin";       break;
-      case XI_RawTouchUpdate:   name = "RawTouchUpdate";      break;
-      case XI_RawTouchEnd:      name = "RawTouchEnd";         break;
-      default:
-	 name = "unknown event type"; break;
-   }
-   return name;
-}
-
-
-static int
-print_version(void)
-{
-   XExtensionVersion	*version;
-   Display *display;
-
-   display = XOpenDisplay(NULL);
-
-   printf("XI version on server: ");
-
-   if (display == NULL)
-      printf("Failed to open display.\n");
-   else {
-      version = XGetExtensionVersion(display, INAME);
-      if (!version || (version == (XExtensionVersion*) NoSuchExtension))
-	 printf(" Extension not supported.\n");
-      else {
-	 printf("%d.%d\n", version->major_version,
-		version->minor_version);
-	 XFree(version);
-	 return 0;
-      }
-   }
-
-   return 1;
-}
+/* static void print_deviceevent(XIDeviceEvent* event); */
+/* static const char* type_to_name(int evtype); */
 
 int
-xinput_version(Display	*display)
-{
-   XExtensionVersion	*version;
-   static int vers = -1;
-
-   if (vers != -1)
-      return vers;
-
-   version = XGetExtensionVersion(display, INAME);
-
-   if (version && (version != (XExtensionVersion*) NoSuchExtension)) {
-      vers = version->major_version;
-      XFree(version);
-   }
-
-   /* Announce our supported version so the server treats us correctly. */
-   if (vers >= XI_2_Major)
-   {
-      const char *forced_version;
-      int maj = 2,
-	    min = 2; /* HAVE_XI22 */
-
-      forced_version = getenv("XINPUT_XI2_VERSION");
-      if (forced_version) {
-	 if (sscanf(forced_version, "%d.%d", &maj, &min) != 2) {
-	    fprintf(stderr, "Invalid format of XINPUT_XI2_VERSION "
-		    "environment variable. Need major.minor\n");
-	    exit(1);
-	 }
-	 printf("Overriding XI2 version to: %d.%d\n", maj, min);
-      }
-
-      XIQueryVersion(display, &maj, &min);
-   }
-
-   return vers;
-}
-
-int
-main(int argc, char * argv[])
+main( void )
 {
    Display	*display;
-   XIEventMask mask[1] = { 0 };
+   XIEventMask mask[1] = { {0} };
    XIEventMask *m;
    Window win;
-   int use_root = 0;
-   int rc;
    int event, error;
    XModifierKeymap *map = NULL;
-   unsigned char byte = 1;
    int i = 0;
    XIDeviceEvent* cookieData;
    int min_keycode, max_keycode, keysyms_per_keycode = 0;
@@ -251,11 +103,6 @@ main(int argc, char * argv[])
 
    if (!XQueryExtension(display, "XInputExtension", &xi_opcode, &event, &error)) {
       printf("X Input extension not available.\n");
-      goto out;
-   }
-
-   if (!xinput_version(display)) {
-      fprintf(stderr, "%s extension not available\n", INAME);
       goto out;
    }
 
@@ -291,11 +138,10 @@ main(int argc, char * argv[])
 	    }
 	 }
       }
-/*       fprintf(stdout, "\n"); */
+      /*       fprintf(stdout, "\n"); */
    }
-/*    fprintf (stdout, "\n"); */
+   /*    fprintf (stdout, "\n"); */
 
-   use_root = 1;
    win = DefaultRootWindow(display);
 
    /* Select for motion events */
@@ -321,7 +167,7 @@ main(int argc, char * argv[])
 	  cookie->type == GenericEvent &&
 	  cookie->extension == xi_opcode)
       {
-/*	 printf("EVENT type %d (%s)\n", cookie->evtype, type_to_name(cookie->evtype)); */
+	 /*	 printf("EVENT type %d (%s)\n", cookie->evtype, type_to_name(cookie->evtype)); */
 	 switch (cookie->evtype)
 	 {
 	    case XI_KeyPress:
@@ -350,3 +196,84 @@ out:
       XCloseDisplay(display);
    return EXIT_FAILURE;
 }
+
+/* static void print_deviceevent(XIDeviceEvent* event) */
+/* { */
+/*    double *val; */
+/*    int i; */
+
+/*    printf("    device: %d (%d)\n", event->deviceid, event->sourceid); */
+/*    printf("    detail: %d\n", event->detail); */
+/*    switch(event->evtype) { */
+/*       case XI_KeyPress: */
+/*       case XI_KeyRelease: */
+/*	 printf("    flags: %s\n", (event->flags & XIKeyRepeat) ?  "repeat" : ""); */
+/*	 break; */
+/* #if HAVE_XI21 */
+/*       case XI_ButtonPress: */
+/*       case XI_ButtonRelease: */
+/*       case XI_Motion: */
+/*	 printf("    flags: %s\n", (event->flags & XIPointerEmulated) ?  "emulated" : ""); */
+/*	 break; */
+/* #endif */
+/*    } */
+
+/*    printf("    root: %.2f/%.2f\n", event->root_x, event->root_y); */
+/*    printf("    event: %.2f/%.2f\n", event->event_x, event->event_y); */
+
+/*    printf("    buttons:"); */
+/*    for (i = 0; i < event->buttons.mask_len * 8; i++) */
+/*       if (XIMaskIsSet(event->buttons.mask, i)) */
+/*	 printf(" %d", i); */
+/*    printf("\n"); */
+
+/*    printf("    modifiers: locked %#x latched %#x base %#x effective: %#x\n", */
+/*	  event->mods.locked, event->mods.latched, */
+/*	  event->mods.base, event->mods.effective); */
+/*    printf("    group: locked %#x latched %#x base %#x effective: %#x\n", */
+/*	  event->group.locked, event->group.latched, */
+/*	  event->group.base, event->group.effective); */
+/*    printf("    valuators:\n"); */
+
+/*    val = event->valuators.values; */
+/*    for (i = 0; i < event->valuators.mask_len * 8; i++) */
+/*       if (XIMaskIsSet(event->valuators.mask, i)) */
+/*	 printf("        %i: %.2f\n", i, *val++); */
+
+/*    printf("    windows: root 0x%lx event 0x%lx child 0x%lx\n", */
+/*	  event->root, event->event, event->child); */
+/* } */
+
+/* static const char* type_to_name(int evtype) */
+/* { */
+/*    const char *name; */
+
+/*    switch(evtype) { */
+/*       case XI_DeviceChanged:    name = "DeviceChanged";       break; */
+/*       case XI_KeyPress:         name = "KeyPress";            break; */
+/*       case XI_KeyRelease:       name = "KeyRelease";          break; */
+/*       case XI_ButtonPress:      name = "ButtonPress";         break; */
+/*       case XI_ButtonRelease:    name = "ButtonRelease";       break; */
+/*       case XI_Motion:           name = "Motion";              break; */
+/*       case XI_Enter:            name = "Enter";               break; */
+/*       case XI_Leave:            name = "Leave";               break; */
+/*       case XI_FocusIn:          name = "FocusIn";             break; */
+/*       case XI_FocusOut:         name = "FocusOut";            break; */
+/*       case XI_HierarchyChanged: name = "HierarchyChanged";    break; */
+/*       case XI_PropertyEvent:    name = "PropertyEvent";       break; */
+/*       case XI_RawKeyPress:      name = "RawKeyPress";         break; */
+/*       case XI_RawKeyRelease:    name = "RawKeyRelease";       break; */
+/*       case XI_RawButtonPress:   name = "RawButtonPress";      break; */
+/*       case XI_RawButtonRelease: name = "RawButtonRelease";    break; */
+/*       case XI_RawMotion:        name = "RawMotion";           break; */
+/*       case XI_TouchBegin:       name = "TouchBegin";          break; */
+/*       case XI_TouchUpdate:      name = "TouchUpdate";         break; */
+/*       case XI_TouchEnd:         name = "TouchEnd";            break; */
+/*       case XI_RawTouchBegin:    name = "RawTouchBegin";       break; */
+/*       case XI_RawTouchUpdate:   name = "RawTouchUpdate";      break; */
+/*       case XI_RawTouchEnd:      name = "RawTouchEnd";         break; */
+/*       default: */
+/*	 name = "unknown event type"; break; */
+/*    } */
+/*    return name; */
+/* } */
