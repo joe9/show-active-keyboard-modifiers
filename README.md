@@ -1,11 +1,11 @@
 # show-active-keyboard-modifiers
 X11 show active keyboard modifiers
 
-```Shell
-
 got this idea from
-   http://stackoverflow.com/questions/16369850/xinput-2-key-code-to-string
-   http://unix.stackexchange.com/questions/129159/record-every-keystroke-and-store-in-a-file
+* http://stackoverflow.com/questions/16369850/xinput-2-key-code-to-string
+* http://unix.stackexchange.com/questions/129159/record-every-keystroke-and-store-in-a-file
+
+```Shell
 
 copied the below from test_xi2.c of xinput source code
 
