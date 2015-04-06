@@ -10,16 +10,16 @@ got this idea from
 copied the below from test_xi2.c of xinput source code
 
 got the xinput source code from
-    git clone git://anongit.freedesktop.org/xorg/app/xinput
+ git clone git://anongit.freedesktop.org/xorg/app/xinput
 to build xinput:
-cd /home/j/dev/apps/x11/xinput && autoreconf -i && ./configure && make
+ cd /home/j/dev/apps/x11/xinput && autoreconf -i && ./configure && make
 
 to print the modifier keysym, check out
-    PrintModifierMapping of exec.c of xmodmap source from
-    http://cgit.freedesktop.org/xorg/app/xmodmap/
+  PrintModifierMapping of exec.c of xmodmap source from
+  http://cgit.freedesktop.org/xorg/app/xmodmap/
 
 to compile:
-    gcc -o show-active-keyboard-modifiers \
+  gcc -o show-active-keyboard-modifiers \
     `pkg-config --cflags --libs xi` \
     `pkg-config --cflags --libs x11` show-active-keyboard-modifiers.c
 
