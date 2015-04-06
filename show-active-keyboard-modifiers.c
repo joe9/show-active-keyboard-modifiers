@@ -47,7 +47,7 @@ int xi_opcode;
 
 extern struct modtab {
    const char *name;
-   char *firstKeySymName;
+   char *first_keysym_name;
 } modifier_table[];
 
 struct modtab modifier_table[] = {	/* keep in order so it can be index */
@@ -70,7 +70,7 @@ static void output(int check, char * label, FILE *fp)
 	 if ((1 << i) & check) {
 	    fprintf(fp, "%s%s",
 		    (first_set_bit ? "" : ","),
-		    modifier_table[i].firstKeySymName);
+		    modifier_table[i].first_keysym_name);
 	    first_set_bit = 0;
 	 }
       }
@@ -91,72 +91,72 @@ static void print_deviceevent(XIDeviceEvent* event)
 	 printf("    flags: %s\n", (event->flags & XIKeyRepeat) ?  "repeat" : "");
 	 break;
 #if HAVE_XI21
-	case XI_ButtonPress:
-	case XI_ButtonRelease:
-	case XI_Motion:
-	    printf("    flags: %s\n", (event->flags & XIPointerEmulated) ?  "emulated" : "");
-	    break;
+      case XI_ButtonPress:
+      case XI_ButtonRelease:
+      case XI_Motion:
+	 printf("    flags: %s\n", (event->flags & XIPointerEmulated) ?  "emulated" : "");
+	 break;
 #endif
-    }
+   }
 
-    printf("    root: %.2f/%.2f\n", event->root_x, event->root_y);
-    printf("    event: %.2f/%.2f\n", event->event_x, event->event_y);
+   printf("    root: %.2f/%.2f\n", event->root_x, event->root_y);
+   printf("    event: %.2f/%.2f\n", event->event_x, event->event_y);
 
-    printf("    buttons:");
-    for (i = 0; i < event->buttons.mask_len * 8; i++)
-	if (XIMaskIsSet(event->buttons.mask, i))
-	    printf(" %d", i);
-    printf("\n");
+   printf("    buttons:");
+   for (i = 0; i < event->buttons.mask_len * 8; i++)
+      if (XIMaskIsSet(event->buttons.mask, i))
+	 printf(" %d", i);
+   printf("\n");
 
-    printf("    modifiers: locked %#x latched %#x base %#x effective: %#x\n",
-	    event->mods.locked, event->mods.latched,
-	    event->mods.base, event->mods.effective);
-    printf("    group: locked %#x latched %#x base %#x effective: %#x\n",
-	    event->group.locked, event->group.latched,
-	    event->group.base, event->group.effective);
-    printf("    valuators:\n");
+   printf("    modifiers: locked %#x latched %#x base %#x effective: %#x\n",
+	  event->mods.locked, event->mods.latched,
+	  event->mods.base, event->mods.effective);
+   printf("    group: locked %#x latched %#x base %#x effective: %#x\n",
+	  event->group.locked, event->group.latched,
+	  event->group.base, event->group.effective);
+   printf("    valuators:\n");
 
-    val = event->valuators.values;
-    for (i = 0; i < event->valuators.mask_len * 8; i++)
-	if (XIMaskIsSet(event->valuators.mask, i))
-	    printf("        %i: %.2f\n", i, *val++);
+   val = event->valuators.values;
+   for (i = 0; i < event->valuators.mask_len * 8; i++)
+      if (XIMaskIsSet(event->valuators.mask, i))
+	 printf("        %i: %.2f\n", i, *val++);
 
-    printf("    windows: root 0x%lx event 0x%lx child 0x%lx\n",
-	    event->root, event->event, event->child);
+   printf("    windows: root 0x%lx event 0x%lx child 0x%lx\n",
+	  event->root, event->event, event->child);
 }
 
 static const char* type_to_name(int evtype)
 {
-    const char *name;
+   const char *name;
 
-    switch(evtype) {
-	case XI_DeviceChanged:    name = "DeviceChanged";       break;
-	case XI_KeyPress:         name = "KeyPress";            break;
-	case XI_KeyRelease:       name = "KeyRelease";          break;
-	case XI_ButtonPress:      name = "ButtonPress";         break;
-	case XI_ButtonRelease:    name = "ButtonRelease";       break;
-	case XI_Motion:           name = "Motion";              break;
-	case XI_Enter:            name = "Enter";               break;
-	case XI_Leave:            name = "Leave";               break;
-	case XI_FocusIn:          name = "FocusIn";             break;
-	case XI_FocusOut:         name = "FocusOut";            break;
-	case XI_HierarchyChanged: name = "HierarchyChanged";    break;
-	case XI_PropertyEvent:    name = "PropertyEvent";       break;
-	case XI_RawKeyPress:      name = "RawKeyPress";         break;
-	case XI_RawKeyRelease:    name = "RawKeyRelease";       break;
-	case XI_RawButtonPress:   name = "RawButtonPress";      break;
-	case XI_RawButtonRelease: name = "RawButtonRelease";    break;
-	case XI_RawMotion:        name = "RawMotion";           break;
-	case XI_TouchBegin:       name = "TouchBegin";          break;
-	case XI_TouchUpdate:      name = "TouchUpdate";         break;
-	case XI_TouchEnd:         name = "TouchEnd";            break;
-	case XI_RawTouchBegin:    name = "RawTouchBegin";       break;
-	case XI_RawTouchUpdate:   name = "RawTouchUpdate";      break;
-	case XI_RawTouchEnd:      name = "RawTouchEnd";         break;
-	default:
-				  name = "unknown event type"; break;
-    }
-    return name;
+   switch(evtype) {
+      case XI_DeviceChanged:    name = "DeviceChanged";       break;
+      case XI_KeyPress:         name = "KeyPress";            break;
+      case XI_KeyRelease:       name = "KeyRelease";          break;
+      case XI_ButtonPress:      name = "ButtonPress";         break;
+      case XI_ButtonRelease:    name = "ButtonRelease";       break;
+      case XI_Motion:           name = "Motion";              break;
+      case XI_Enter:            name = "Enter";               break;
+      case XI_Leave:            name = "Leave";               break;
+      case XI_FocusIn:          name = "FocusIn";             break;
+      case XI_FocusOut:         name = "FocusOut";            break;
+      case XI_HierarchyChanged: name = "HierarchyChanged";    break;
+      case XI_PropertyEvent:    name = "PropertyEvent";       break;
+      case XI_RawKeyPress:      name = "RawKeyPress";         break;
+      case XI_RawKeyRelease:    name = "RawKeyRelease";       break;
+      case XI_RawButtonPress:   name = "RawButtonPress";      break;
+      case XI_RawButtonRelease: name = "RawButtonRelease";    break;
+      case XI_RawMotion:        name = "RawMotion";           break;
+      case XI_TouchBegin:       name = "TouchBegin";          break;
+      case XI_TouchUpdate:      name = "TouchUpdate";         break;
+      case XI_TouchEnd:         name = "TouchEnd";            break;
+      case XI_RawTouchBegin:    name = "RawTouchBegin";       break;
+      case XI_RawTouchUpdate:   name = "RawTouchUpdate";      break;
+      case XI_RawTouchEnd:      name = "RawTouchEnd";         break;
+      default:
+	 name = "unknown event type"; break;
+   }
+   return name;
 }
 
 
@@ -269,7 +269,7 @@ main(int argc, char * argv[])
    XGetKeyboardMapping (display, min_keycode, (max_keycode - min_keycode + 1),
 			&keysyms_per_keycode);
    for (i = 0; i < 8; i++) {
-/*       fprintf(stdout, "%-10s", modifier_table[i].name); */
+      /*       fprintf(stdout, "%-10s", modifier_table[i].name); */
 
       int j = 0;
       for (j = 0; j < map->max_keypermod; j++) {
@@ -287,7 +287,7 @@ main(int argc, char * argv[])
 	    /*	    fprintf (stdout, "%s (0x%0x) ", */
 	    /*		     (nm ? nm : "Badkey") , map->modifiermap[k]); */
 	    if (0 == j && nm) {
-	       modifier_table[i].firstKeySymName = nm;
+	       modifier_table[i].first_keysym_name = nm;
 	    }
 	 }
       }
